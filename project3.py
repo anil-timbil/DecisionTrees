@@ -1,32 +1,40 @@
-# Project 3
+# COM307 | Project 3
+# April 5, 2020
 # Anil Timbil
-# ...
+# This program creates a set of decision trees and outputs one of them
+# randomly for use. In order to select  best splits, we iterate every column 
+# and its distinct values to evaluate their gini index. Then, we recursively
+# create decision trees using bootstraping method. 
 
 # Import libraries
 import pandas as pd
 from random import randint
 
-
+# Calculates the weighted gini score for a given group of data.
 def calculate_gini(group, dataframe_len, classes):
 
+	# Get the length of group.
 	size = len(group.index)
 	if size == 0:
 		return 0
 
+	# Find proportion of each class 
 	gini_score = 0
 	for class_item in classes:
 		proportion = len(group[group['col35']==class_item]) / size
 		gini_score += proportion * proportion
 
+	# Calculate weighted gini score
 	weighted_score = (1.0 - gini_score) * (size / dataframe_len)
 	return weighted_score
 
+# Returns the gini index and split groups for a given pair of split parameters.
 def gini_index(split_col, split_val, dataframe):
 
 	classes = list(set(dataframe['col35'].values))
-
 	total_observations = len(dataframe.index)
 
+	# Create split groups and their gini indexes.
 	group1 = dataframe[dataframe[split_col]<=split_val]
 	group1_gini = calculate_gini(group1, total_observations, classes)
 
@@ -35,134 +43,97 @@ def gini_index(split_col, split_val, dataframe):
 
 	gini = group1_gini + group2_gini
 
-	#print(gini)
-
 	return gini, group1, group2
 
-
+# Returns the best split looping through every variable and its distinct values.
 def find_best_split(dataframe):
 
-	#initialize
+	#initialize variables
 	min_col = dataframe.columns[0]
 	min_split = dataframe.iloc[0,0]
-	min_gini = 0.5
+	min_gini = 0.5 # max gini index possible
 	group1 = -1
 	group2 = -1
 
+	# Loop through each variable and its uniquie value.
 	for col in dataframe.columns:
 
 		if col!='col35':
-			values = list(set(dataframe[col].values))
+			values = list(set(dataframe[col].values)) #Distinct values in the column
 
 			for split in values:
-				#print(col, split)
+
 				gini_val, g1, g2 = gini_index(col, split, dataframe)
 
-				#if gini_val == 0:
-				#	return col, split
+				# Update variables if a smaller gini index is found.
 				if gini_val <= min_gini:
 					min_col = col
 					min_split = split
 					min_gini = gini_val
 					group1 = g1
 					group2 = g2
-				#print(min_col, min_split, min_gini)
+
 	return min_col, min_split, min_gini, group1, group2
 
-
-
-
+# Creates a decision tree recursively by finding split points
 def create_tree(dataframe, min_size, max_depth, depth):
 
-	# Gini index
+	### Find the best split using Gini Index ##
  	split_col, split_val, split_gini, group1, group2 = find_best_split(dataframe)
  	print("split: ", split_col, split_val, split_gini, depth)
 
- 	#print("********Group 1*********")
- 	#print(group1)
- 	#print("********Group 2*********")
- 	#print(group2)
 
- 	# Base Cases
+ 	### Base Cases ###
+
+ 	# Max depth is reached
  	if depth==max_depth:
  		print("G1: ", set(group1['col35'].values))
  		print("G2: ", set(group2['col35'].values))
- 		#print("Class: ", set(dataframe['col35'].values), "max_depth")
  		return
 
+ 	# Perfect split
  	if split_gini==0:
  		print("G1: ", set(group1['col35'].values))
  		print("G2: ", set(group2['col35'].values))
  		#print("Class: ", set(dataframe['col35'].values), "Gini")
  		return
 
+ 	# Small dataset
  	if len(dataframe.index)<=min_size:
  		print("G1: ", set(group1['col35'].values))
  		print("G2: ", set(group2['col35'].values))
  		#print("Class: ", set(dataframe['col35'].values), "min_size")
  		return
 
- 	# Recursive cases
+ 	### Recursive cases ###
  	else:
  		create_tree(group1, min_size, max_depth, depth+1) #left child
  		create_tree(group2, min_size, max_depth, depth+1) #right child
 
- 	# if len(group1.index)<=min_size:
- 	# 	print("G1: ", set(group1['col35'].values))
- 	# 	print("G2: ", set(group2['col35'].values))
- 	# 	print("Class: ", set(dataframe['col35'].values), "min_size")
- 	# 	return
- 	# else:
- 	# 	create_tree(group1, min_size, max_depth, depth+1)
-
- 	# if len(group2.index)<=min_size:
- 	# 	print("G1: ", set(group1['col35'].values))
- 	# 	print("G2: ", set(group2['col35'].values))
- 	# 	print("Class: ", set(dataframe['col35'].values), "min_size")
- 	# 	return
- 	# else:
- 	# 	create_tree(group2, min_size, max_depth, depth+1)
-	 	
-
- 			#for i in range(len(dataframe[col])):
- 			#	value = dataframe[col].iloc[i]
- 			#	print(value, type(value))
-			
-
-	#base case
-
-	#recursive case
-
-
-
+# Loads the dataset, selects m random predictor variables, and creates a decision tree.
 def main(m):
 
-	# ionosphere data
-	print("Reading in the datafile...")
+	# Import ionosphere data
 	observations = pd.read_csv("ionosphere.csv") 
 	total = len(observations)
+	print("Datafile is load...")
 
-	
-
-	# Pick random m variables
+	# Pick m random predictors
 	variables = []
 	for i in range(m):
-
 		col = 'col'+str(randint(1,34))
 		while col in variables:
 			col = 'col'+str(randint(1,34))
 		variables.append(col)
 	variables.append('col35')
-	print(variables)
+	print("Selected the following m random variables:\n", variables)
 
-	dataframe = observations[variables]
-	#dataframe = observations[['col28', 'col9', 'col30', 'col32', 'col19', 'col26', 'col4', 'col2', 'col31', 'col23', 'col35']]
-	#print(dataframe)
-
-	create_tree(dataframe, 5, 6, 1)
 	
-	# Bootstraping and tree function
-
+	# Bootstraping and decision trees
+	min_size = 5
+	max_depth = 6
+	dataframe = observations[variables]
+	create_tree(dataframe, min_size, max_depth, 1)
 
 
 	# First random tree
